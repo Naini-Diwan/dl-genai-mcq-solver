@@ -65,7 +65,6 @@ Outside Kaggle, update `TRAIN_PATH` / `TEST_PATH` in the setup cell to point at 
 
 Requires a Weights & Biases API key, retrieved via Kaggle Secrets (`WandB-API`) in the notebook. Outside Kaggle, set the `WANDB_API_KEY` environment variable or call `wandb.login()` directly instead.
 
-GPU is recommended; the notebook auto-detects CUDA and falls back to CPU otherwise.
 
 ## Running
 
