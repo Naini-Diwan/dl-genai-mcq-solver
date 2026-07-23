@@ -4,7 +4,7 @@
 ### Milestone-1
 **NLP Foundation & Semantic Similarity**
 
-Performed preprocessing of data: Text cleaning, normalization, and handling punctuation.
+Performed preprocessing of data: dropping rows with duplicate questions, lower-case conversion, removing the repititive parts from questions and encoding the answer-options.
 
 Generated baseline model TF-IDF (Text Frequency-Inverse Document Frequency):
 
