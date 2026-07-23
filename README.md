@@ -1,10 +1,10 @@
 # IIT Madras DL Gen-AI Project [2026]
-## Kaggle - Smart MCQ Solver Challenge
+# Kaggle - Smart MCQ Solver Challenge
 
-### Milestone-1
+## Milestone-1
 **NLP Foundation & Semantic Similarity**
 
-Performed preprocessing of data: Text cleaning, normalization, and handling punctuation.
+Performed preprocessing of data: dropping rows with duplicate questions, lower-case conversion, removing the repititive parts from questions and encoding the answer-options.
 
 Generated baseline model TF-IDF (Text Frequency-Inverse Document Frequency):
 
@@ -22,7 +22,14 @@ Calculates the ratio of relevant items among the top 3 recommended results.
 
 Scoring Range: The final metric value falls strictly between 0 (completely irrelevant top 3 suggestions) and 1 (perfect top 3 relevant predictions).
 
-### Milestone-5
+## Milestone-2
+**Transformers**
+
+Utilized the Hugging Face transformers and datasets libraries. Learnt architecture of BERT/RoBERTa and the concept of attention mechanisms. Used pre-trained embedding models to generate context-aware embeddings.
+
+Fine-tuned `microsoft/deberta-v3-small` as a multiple-choice question answering model using Hugging Face `Trainer`.
+
+## Milestone-5
 **Ensembling**
 
 An ensemble pipeline for the Kaggle **Smart MCQ Solver Challenge**: predicting the correct answer to five-option (A–E) multiple-choice questions, scored by MAP@3.
