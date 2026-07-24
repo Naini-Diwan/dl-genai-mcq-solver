@@ -1,101 +1,90 @@
 # IIT Madras DL Gen-AI Project [2026]
 
-## Milestone 4: Formulating MCQ Task & Fine-Tuning
+## Milestone 3: Context Augmentation with RAG Pipelines
 
 **Short Summary**
 
-*peft RoBERTa-base + LoRA* (parameter-efficient fine-tuning of RoBERTa via Low-Rank Adaptation)
+*RAG* stands for Retrieval-Augmented Generation. It is an artificial intelligence technique that improves a large language model (LLM) by looking up facts from an external knowledge base before writing an answer.
 
-* Data formatting for MCQ: Concatenating the question with options.
-* Introduced LoRA-finetuning, which is advantageous over Full-finetuning.
-* Setting up a training loop to fine-tune the model weights on the dataset.
-* Managing GPU memory and batch sizes.
-* Training efficiency strategies with Training arguments.
+* Understood the limitations of general LLMs
+* Learnt the RAG pipeline
+* Loaded a simple pre-built vector database.
+* Retrieved external context based on the question prompt.
+* Fed the retrieved context + prompt + choices into the model to improve reasoning.
 
 **Description**
 
-Fine-tuned `RoBERTa` base with LoRA to answer five-option multiple-choice questions for the Kaggle "Smart MCQ Solver Challenge" competition, and generated top-3 ranked predictions scored by MAP@3.
+Answers five-option multiple-choice questions for the Kaggle "Smart MCQ Solver Challenge" by retrieving relevant Wikipedia passages with a dense embedding index and prompting a local instruction-tuned LLM (Phi-3-mini) to rank the three most likely answers. This is a retrieval + prompting pipeline, not a fine-tuned classifier — no model weights are trained.
 
-Notebook: `roberta-lora-fine-tuning.ipynb`
+Notebook: `rag-23f3001480.ipynb`
 
-## What it does
+## Pipeline overview
 
-1. Loads `train.csv` / `test.csv` from the competition data.
-2. Cleans the data: drops duplicate prompts, lower-cases text, strips boilerplate instruction phrases (e.g. "pick the best possible answer:") from prompts.
-3. Splits train data 80/20 into train/validation, stratified on the answer label.
-4. Wraps each question + its 5 options into a Hugging Face `AutoModelForMultipleChoice`-compatible dataset.
-5. Fine-tunes `roberta-base` using LoRA (PEFT) instead of full fine-tuning.
-6. Tracks accuracy, macro F1, and MAP@3 during training (MAP@3 is the model-selection metric, matching the competition's scoring).
-7. Logs runs to Weights & Biases.
-8. Runs inference on the test set and builds top-3 ranked answer strings (e.g. `"B D A"`).
+1. **Load competition data** — `train.csv` / `test.csv` from the Smart MCQ Solver Challenge.
+2. **Load a Wikipedia corpus** — the auxiliary Kaggle dataset `mbanaei/stem-wiki-cohere-no-emb` is pulled via `kagglehub`
+3. **Build a retrieval index** — a random 5,000-passage sample of the Wikipedia dump is embedded with `all-MiniLM-L6-v2` (Sentence-Transformers) and indexed with FAISS (`IndexFlatIP`, cosine similarity via normalized inner product). The index and passage metadata are persisted to disk (`wiki.index`, `wiki_meta.parquet`).
+4. **Retrieve context** — for a given question, the top-3 most similar passages are fetched from the FAISS index.
+5. **Prompt an LLM to rank answers** — `microsoft/Phi-3-mini-4k-instruct` is loaded and given the question, its five options, and the retrieved passages, then asked to return the three most likely correct options ranked best-first.
+6. **Evaluate** — accuracy, macro F1, and MAP@3 are computed on a 200-row labeled sample drawn from `train.csv` (Note that `test.csv` has no ground truth, and in RAG, the model did NOT learn over train dataser, it learned form the knowledge_base).
+7. **Generate submission** — the same ranking procedure runs over the full test set and results are written to `submission.csv`.
 
-## Data
+## Data and models used
 
-| Column | Description |
+| Component | Source |
 |---|---|
-| `id` | Row identifier |
-| `prompt` | Question text |
-| `A`–`E` | Five candidate answers |
-| `answer` | Correct option (train only), one of A–E |
+| Competition data | `/kaggle/input/competitions/smart-mcq-solver-challenge/{train,test,sample_submission}.csv` |
+| Wikipedia corpus | `mbanaei/stem-wiki-cohere-no-emb` (via kagglehub) — columns: `id`, `title`, `text`, `url`, `wiki_id`, `views`, `paragraph_id`, `langs` |
+| Embedding model | `sentence-transformers/all-MiniLM-L6-v2` (384-dim) |
+| Generator model | `microsoft/Phi-3-mini-4k-instruct` (loaded in `bfloat16` on GPU, `float32` on CPU) |
 
-Train set: 2,000 rows, no missing values, 242 duplicate prompts removed before splitting.
+## Retrieval details
+
+- Corpus is **subsampled to 5,000 passages** (`random_state=42`) out of the full Wikipedia dump, noted in-notebook as a speed tradeoff for Kaggle's session time limits — not the full corpus.
+- Embeddings are L2-normalized so FAISS inner product search (`IndexFlatIP`) is equivalent to cosine similarity.
+- `retrieve(query, k=3)` returns the raw passage text for the top-*k* matches to a query string.
+
+## Prompting details
+
+For each question, the prompt supplied to Phi-3-mini includes:
+- The retrieved passages as context
+- The question text
+- All five options (A–E)
+- An instruction to respond with only the three most likely option letters, ranked best-first, comma-separated (e.g. `"B, D, A"`)
+
+Generation is deterministic (`do_sample=False`, `max_new_tokens=10`). The response is parsed by scanning generated characters for valid option letters (A–E), preserving first-seen order and deduplicating; if fewer than 3 valid letters are found, remaining option letters are appended to pad the ranking to 3.
+
+## Evaluation
+
+Run on a random 200-row sample of `train.csv` (`random_state=42`), since `test.csv` has no labels:
+
+| Metric | Value |
+|---|---|
+| Accuracy (top-1) | 0.6100 |
+| Macro F1 | 0.5996 |
+| MAP@3 | 0.7625 |
+
+MAP@3 is computed by awarding `1/rank` when the true answer appears in the top-3 predictions (1.0 first place, 0.5 second, 0.333 third, 0 otherwise), averaged over all evaluated rows — the same scoring logic the competition uses.
+
+## Output
+
+`submission.csv` with columns `ID` and `Prediction`, where `Prediction` is a space-separated string of the top-3 ranked option letters per test question (e.g. `"A E D"`). Row count and column-name assertions are run before writing the file.
 
 ## Requirements
 
 ```
-torch
-torchao
 pandas
 numpy
-scikit-learn
+faiss-gpu (or faiss-cpu)
+sentence-transformers
 transformers
-peft
-wandb
+accelerate
+torch
+scikit-learn
+datasets
+kagglehub
 ```
 
-Also expects a Kaggle Secrets entry named for W&B logging (via `kaggle_secrets.UserSecretsClient`).
-
-## Key config
-
-**LoRA:** `r=8`, `lora_alpha=16`, `target_modules=["query","value"]`, `lora_dropout=0.1`, `bias="none"`, `task_type=SEQ_CLS`
-
-**Training:** `learning_rate=5e-4`, batch size 4 with gradient accumulation 4 (effective 16), 12 epochs, cosine LR schedule with 3% warmup, eval/save every epoch, best checkpoint selected by `eval_map@3`.
-
-Random seed fixed at `42` across Python, NumPy, and PyTorch (including CUDA) for reproducibility.
-
-## Results
-
-| **Model** | **Accuracy** | **F1 Score** | **MAP@3** |
-|---|---|---|---|
-| **RoBERTa L(ORA finetuned)** | 0.8409 | 0.8422 | 0.8929 |
-
-## Output
-
-Per-test-question top-3 predicted labels, ranked by predicted probability, in the format the competition's MAP@3 scoring expects (space-separated letters, e.g. `"B D A"`).
-
-## Data
-
-Expects the competition files at:
-
-```
-/kaggle/input/competitions/smart-mcq-solver-challenge/
-├── train.csv     # id, prompt, A, B, C, D, E, answer (2000 rows)
-├── test.csv      # id, prompt, A, B, C, D, E
-└── sample_submission.csv
-```
-
-Outside Kaggle, update `TRAIN_PATH` / `TEST_PATH` in the setup cell to point at your local copy.
-
-## Environment
-
-- Python 3.12
-- PyTorch 2.10 (cu128)
-- `transformers`, `peft`, `torchao`, `wandb`, `scikit-learn`, `pandas`, `numpy`
-
-Requires a Weights & Biases API key, retrieved via Kaggle Secrets (`WandB-API`) in the notebook. Outside Kaggle, set the `WANDB_API_KEY` environment variable or call `wandb.login()` directly instead.
-
-GPU is recommended; the notebook auto-detects CUDA and falls back to CPU otherwise.
-
+Requires GPU access for practical runtime (Phi-3-mini inference over the full test set is described as the slow part of the pipeline).
 
 ---
 By: [Naini Diwan](https://naini-diwan.github.io/Hello-Naini/)
