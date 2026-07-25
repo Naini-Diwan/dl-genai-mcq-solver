@@ -1,7 +1,6 @@
-# IIT Madras DL Gen-AI Project [2026]
-## Kaggle - Smart MCQ Solver Challenge
+# IIT Madras DL Gen-AI Project 2026 [Kaggle - Smart MCQ Solver Challenge]
 
-### Milestone-1
+## Milestone-1
 **NLP Foundation & Semantic Similarity**
 
 Performed preprocessing of data: dropping rows with duplicate questions, lower-case conversion, removing the repititive parts from questions and encoding the answer-options.
