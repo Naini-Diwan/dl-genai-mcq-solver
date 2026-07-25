@@ -29,27 +29,36 @@ Utilized the Hugging Face transformers and datasets libraries. Learnt architectu
 
 Fine-tuned `microsoft/deberta-v3-small` as a multiple-choice question answering model using Hugging Face `Trainer`.
 
+## Milestone-3
+**Context Augmentation with RAG Pipelines**
+
+Retrieved relevant Wikipedia passages, made an index and prompted a local instruction-tuned LLM (Phi-3-mini) to rank the three most likely answers for any given MCQ. This is a retrieval + prompting pipeline, not a fine-tuned classifier so the weights of the model were not trained.
+
+* Understood the limitations of general LLMs
+* Learnt the RAG pipeline
+* Loaded a simple pre-built vector database.
+* Retrieved external context based on the question prompt.
+* Fed the retrieved context + prompt + choices into the model to improve reasoning.
+
+## Milestone-4
+**Formulating MCQ Task & Fine-Tuning**
+
+*peft RoBERTa-base + LoRA* (parameter-efficient fine-tuning of RoBERTa via Low-Rank Adaptation)
+
+* Data formatting for MCQ: Concatenating the question with options.
+* LoRA-finetuning was utilized, which is advantageous over Full-finetuning.
+* Setting up a training loop to fine-tune the model weights on the dataset.
+* Managed GPU memory and batch sizes.
+* Training efficiency strategies with Training arguments.
+
 ## Milestone-5
 **Ensembling**
 
-An ensemble pipeline for the Kaggle **Smart MCQ Solver Challenge**: predicting the correct answer to five-option (A–E) multiple-choice questions, scored by MAP@3.
+An ensemble pipeline for predicting the correct answer to five-option (A–E) multiple-choice questions, scored by MAP@3.
 
-Four models are built, in order of increasing complexity:
-
-1. **TF-IDF cosine similarity** — no training, similarity between prompt and option vectors
-2. **DeBERTa-v3-small** — fully fine-tuned with Hugging Face `AutoModelForMultipleChoice`
-3. **RoBERTa-base + LoRA** — parameter-efficient fine-tuning via Low-Rank Adaptation
-4. **Weighted ensemble** — 0.70 × DeBERTa + 0.30 × RoBERTa softmax probabilities
-
-## Results
-
-| Model | Accuracy | Macro F1 | MAP@3 |
-|---|---|---|---|
-| TF-IDF (cosine similarity) | 0.1250 | 0.1231 | 0.2712 |
-| **Ensemble (0.7 DeBERTa + 0.3 RoBERTa)** | **0.9750** | **0.9746** | **0.9833** |
-
-Standalone validation metrics for DeBERTa and RoBERTa are logged to Weights & Biases during training but not printed as a final summary in the notebook; only the ensemble's combined metrics are reported directly.
-
+* **DeBERTa-v3-small** — fully fine-tuned with Hugging Face `AutoModelForMultipleChoice`
+* **RoBERTa-base + LoRA** — parameter-efficient fine-tuning via Low-Rank Adaptation
+* **Weighted ensemble** — 0.70 × DeBERTa + 0.30 × RoBERTa softmax probabilities
 
 ## Data
 
@@ -71,7 +80,6 @@ Outside Kaggle, update `TRAIN_PATH` / `TEST_PATH` in the setup cell to point at 
 - `transformers`, `peft`, `torchao`, `wandb`, `scikit-learn`, `pandas`, `numpy`
 
 Requires a Weights & Biases API key, retrieved via Kaggle Secrets (`WandB-API`) in the notebook. Outside Kaggle, set the `WANDB_API_KEY` environment variable or call `wandb.login()` directly instead.
-
 
 ## Running
 
