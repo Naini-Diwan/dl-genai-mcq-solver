@@ -4,7 +4,6 @@ torchao==0.17.0
 
 # Hugging Face stack
 transformers>=4.40.0
-peft>=0.11.0
 
 # Data handling and classical ML
 numpy>=1.26.0

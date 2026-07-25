@@ -1,87 +1,69 @@
 # IIT Madras DL Gen-AI Project [2026]
-## Kaggle - Smart MCQ Solver Challenge
+# Kaggle - Smart MCQ Solver Challenge
 
-### Milestone-1
-**NLP Foundation & Semantic Similarity**
+## Milestone 2 - Transformers
 
-Performed preprocessing of data: Text cleaning, normalization, and handling punctuation.
+Utilized the Hugging Face transformers and datasets libraries. Learnt architecture of BERT/RoBERTa and the concept of attention mechanisms. Used pre-trained embedding models to generate context-aware embeddings.
 
-Generated baseline model TF-IDF (Text Frequency-Inverse Document Frequency):
+Fine-tuned `microsoft/deberta-v3-small` as a multiple-choice question answering model using Hugging Face `Trainer`.
 
-TfidfVectorizer is chosen over CountVectorizer because it penalizes highly frequent, uninformative words. cosine_similarity is chosen over Euclidean distance because it measures the semantic direction of the text vectors, independent of their length.
+## Overview
 
-Computed cosine similarity between a 'prompt' and 'options' and understood its concepts.
+Each question has a prompt and five answer options (A–E). The model scores every `(prompt, option)` pair and picks the option with the highest score, using the `AutoModelForMultipleChoice` head. Training and evaluation are logged to Weights & Biases.
 
-Evaluation of the model: Calculated Accuracy, F1 score and mAP@3. Learnt the importance of mAP.
+## Pipeline
 
-**MAP@3 MechanicsPrecision@3 -**
+1. **Setup** — seeds all RNGs (`seed=42`) for reproducibility; detects CUDA device.
+2. **Data** — loads `train.csv` / `test.csv`, creates an 80/20 stratified train/validation split on the `answer` column.
+3. **Dataset** — `HuggingFaceMCQDataset` tokenizes each `(prompt, option)` pair for all 5 options per row, producing tensors shaped `[num_choices, max_length]`.
+4. **Model** — `microsoft/deberta-v3-small` loaded via `AutoModelForMultipleChoice` (classification head is randomly initialized, since the base checkpoint has no MC head).
+5. **Training** — `Trainer` with cosine LR schedule, 3 epochs, gradient accumulation, evaluated every epoch on accuracy and macro F1.
+6. **Inference** — runs the trained model on the test set, takes the softmax over the 5 options, and writes the top-3 predicted labels per question to `submission.csv`.
 
-Calculates the ratio of relevant items among the top 3 recommended results.
-* Average Precision at 3 (AP@3): Averages the precision scores at each rank position up to 3, but only for the ranks where a relevant item was actually retrieved.
-* Mean Average Precision (MAP@3): Takes the mean (average) of the AP@3 scores across all evaluation queries, users, or test cases in your dataset.
+## Requirements
 
-Scoring Range: The final metric value falls strictly between 0 (completely irrelevant top 3 suggestions) and 1 (perfect top 3 relevant predictions).
+```
+torch
+transformers
+peft
+scikit-learn
+pandas
+numpy
+wandb
+```
 
-### Milestone-5
-**Ensembling**
+`wandb` requires a Kaggle/Colab environment or local installation (`pip install torch transformers scikit-learn pandas numpy wandb`). A Weights & Biases account/API key is needed to log runs (or set `report_to="none"` in `TrainingArguments` to skip it).
 
-An ensemble pipeline for the Kaggle **Smart MCQ Solver Challenge**: predicting the correct answer to five-option (A–E) multiple-choice questions, scored by MAP@3.
+## Configuration
 
-Four models are built, in order of increasing complexity:
-
-1. **TF-IDF cosine similarity** — no training, similarity between prompt and option vectors
-2. **DeBERTa-v3-small** — fully fine-tuned with Hugging Face `AutoModelForMultipleChoice`
-3. **RoBERTa-base + LoRA** — parameter-efficient fine-tuning via Low-Rank Adaptation
-4. **Weighted ensemble** — 0.70 × DeBERTa + 0.30 × RoBERTa softmax probabilities
+| Parameter | Value |
+|---|---|
+| Base model | `microsoft/deberta-v3-small` |
+| Max sequence length | 128 |
+| Epochs | 3 |
+| Learning rate | 1e-5 (cosine schedule, 10% warmup) |
+| Batch size | 8 (train/eval), grad accumulation ×2 |
+| Max grad norm | 0.5 |
+| Seed | 42 |
 
 ## Results
 
-| Model | Accuracy | Macro F1 | MAP@3 |
-|---|---|---|---|
-| TF-IDF (cosine similarity) | 0.1250 | 0.1231 | 0.2712 |
-| **Ensemble (0.7 DeBERTa + 0.3 RoBERTa)** | **0.9750** | **0.9746** | **0.9833** |
+*Validation performance*:
 
-Standalone validation metrics for DeBERTa and RoBERTa are logged to Weights & Biases during training but not printed as a final summary in the notebook; only the ensemble's combined metrics are reported directly.
+| Epoch | Training Loss | Validation Loss | Accuracy | F1 (macro) |
+|---|---|---|---|---|
+| 1 | 4.695 | 2.740 | 0.235 | 0.232 |
+| 2 | 4.430 | 2.613 | 0.435 | 0.439 |
+| 3 | 5.199 | 2.354 | 0.510 | 0.511 |
+
+Best checkpoint (epoch 3): **51.0% accuracy**, **0.511 macro F1**.
 
 
-## Data
 
-Expects the competition files at:
-
-```
-/kaggle/input/competitions/smart-mcq-solver-challenge/
-├── train.csv     # id, prompt, A, B, C, D, E, answer (2000 rows)
-├── test.csv      # id, prompt, A, B, C, D, E
-└── sample_submission.csv
-```
-
-Outside Kaggle, update `TRAIN_PATH` / `TEST_PATH` in the setup cell to point at your local copy.
-
-## Environment
-
-- Python 3.12
-- PyTorch 2.10 (cu128)
-- `transformers`, `peft`, `torchao`, `wandb`, `scikit-learn`, `pandas`, `numpy`
-
-Requires a Weights & Biases API key, retrieved via Kaggle Secrets (`WandB-API`) in the notebook. Outside Kaggle, set the `WANDB_API_KEY` environment variable or call `wandb.login()` directly instead.
-
-GPU is recommended; the notebook auto-detects CUDA and falls back to CPU otherwise.
-
-## Running
-
-Open and run `dl-23f3001480-ensemble.ipynb` top to bottom. It:
-
-1. Loads and lowercases the training/test prompts
-2. Splits train into an 80/20 stratified train/validation split (`random_state=42`)
-3. Fits and evaluates the TF-IDF baseline
-4. Fine-tunes DeBERTa-v3-small (4 epochs, lr 1e-5, cosine schedule)
-5. Fine-tunes RoBERTa-base with LoRA (r=8, alpha=16, target modules `query`/`value`, 10 epochs, lr 5e-4)
-6. Combines DeBERTa and RoBERTa softmax probabilities (0.7 / 0.3) and evaluates the ensemble on validation
-7. Runs inference on the test set and writes `submission.csv`
-
+### Reference - [Vaswani et. al. : Attention Is All You Need](https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf)
 
 
 ---
-By: [Naini Diwan](https://naini-diwan.github.io/Hello-Naini/)
+Hey! I'm [Naini Diwan](https://naini-diwan.github.io/Hello-Naini/) :)
 
 Roll No.: 23f3001480
