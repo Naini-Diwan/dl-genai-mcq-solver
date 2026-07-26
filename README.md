@@ -1,6 +1,5 @@
-# IIT Madras DL Gen-AI Project [Kaggle - Smart MCQ Solver Challenge, 2026]
-
-This repository contains 6 branches, which constitute (most of) my progress for the project, the go-to branch being `main`. It contains in the *notebooks* folder, two notebooks built for the multiple-choice question (MCQ) answering competition scored with **MAP@3** (Mean Average Precision at 3). Each item presents a question prompt and five candidate answers (`A`–`E`); a submission ranks the top three most likely correct options.
+# IIT Madras DL Gen-AI Project 
+This repository contains 6 branches, which constitute (most of) my progress for the Kaggle Smart MCQ Solver Challenge (2026), the go-to branch being `main`. It contains in the *notebooks* folder, two notebooks built for the multiple-choice question (MCQ) answering competition scored with **MAP@3** (Mean Average Precision at 3). Each item presents a question prompt and five candidate answers (`A`–`E`); a submission ranks the top three most likely correct options.
  
 **dl-23f3001480-notebook-t22026.ipynb** — four supervised/lexical approaches, trained and evaluated end-to-end, culminating in a weighted ensemble.
 
@@ -102,17 +101,14 @@ Outside Kaggle, update `TRAIN_PATH` / `TEST_PATH` in the setup cell to point at 
 
 ---
 ### Environment
+Do refer `requirements.txt`.
 
-- Python 3.12
-- PyTorch 2.10 (cu128)
-- `transformers`, `peft`, `torchao`, `wandb`, `scikit-learn`, `pandas`, `numpy`
-
-Requires a Weights & Biases API key, retrieved via Kaggle Secrets (`WandB-API`) in the notebook. Outside Kaggle, set the `WANDB_API_KEY` environment variable or call `wandb.login()` directly instead.
+A Weights & Biases API key would be required, retrieved via Kaggle Secrets (`WandB-API`) in the notebook. Outside Kaggle, set the `WANDB_API_KEY` environment variable or call `wandb.login()` directly instead.
 
 > `faiss-gpu` wheels are only published for a limited set of Python/CUDA combinations on PyPI. If installation fails in your environment, use `faiss-cpu` instead (slower, but works everywhere), or install FAISS via `conda-forge`.
 
 
 ---
-Phew, that was big work! By the way I'm [Naini Diwan](https://naini-diwan.github.io/Hello-Naini/) :)
+*Phew, that was big work (and I'm so proud of it)! By the way I'm [Naini Diwan](https://naini-diwan.github.io/Hello-Naini/)* :)
 
 Roll No.: DS23F3001480
